@@ -12,6 +12,8 @@ interface Scene {
   thumbnail: string;
 }
 
+export type VideoSize = '16:9' | '4:3' | '1:1';
+
 export default function EditVideo() {
   const [scenes, setScenes] = useState<Scene[]>([
     {
@@ -58,6 +60,7 @@ export default function EditVideo() {
   ]);
 
   const [selectedScene, setSelectedScene] = useState(scenes[0]);
+  const [videoSize, setVideoSize] = useState<VideoSize>('16:9');
 
   const handleSceneUpdate = (id: number, newContent: string) => {
     const updatedScenes = scenes.map((scene) => (scene.id === id ? { ...scene, content: newContent } : scene));
@@ -79,7 +82,7 @@ export default function EditVideo() {
             onSceneUpdate={handleSceneUpdate}
           />
           <div className="flex-1 flex flex-col">
-            <VideoPreview selectedScene={selectedScene} />
+            <VideoPreview selectedScene={selectedScene} videoSize={videoSize} onVideoSizeChange={setVideoSize} />
             <Timeline />
           </div>
         </div>
