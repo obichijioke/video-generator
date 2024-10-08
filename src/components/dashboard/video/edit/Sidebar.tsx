@@ -1,4 +1,3 @@
-import { Button } from '@/components/ui/button';
 import { LayoutGrid, Image, Music, Type, Shapes, Palette, Briefcase, LayoutTemplate } from 'lucide-react';
 
 export function Sidebar() {
