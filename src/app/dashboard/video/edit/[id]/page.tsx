@@ -1,11 +1,11 @@
 'use client';
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Sidebar } from '@/components/dashboard/video/edit/Sidebar';
 import { SceneList } from '@/components/dashboard/video/edit/SceneList';
 import { VideoPreview } from '@/components/dashboard/video/edit/VideoPreview';
 import { Timeline } from '@/components/dashboard/video/edit/Timeline';
 
-interface Scene {
+export interface Scene {
   id: number;
   title: string;
   content: string;
@@ -62,13 +62,18 @@ export default function EditVideo() {
   const [selectedScene, setSelectedScene] = useState(scenes[0]);
   const [videoSize, setVideoSize] = useState<VideoSize>('16:9');
 
-  const handleSceneUpdate = (id: number, newContent: string) => {
-    const updatedScenes = scenes.map((scene) => (scene.id === id ? { ...scene, content: newContent } : scene));
-    setScenes(updatedScenes);
-    if (selectedScene.id === id) {
-      setSelectedScene({ ...selectedScene, content: newContent });
-    }
-  };
+  const handleSceneUpdate = useCallback((id: number, newContent: string) => {
+    setScenes((prevScenes) => prevScenes.map((scene) => (scene.id === id ? { ...scene, content: newContent } : scene)));
+    setSelectedScene((prevScene) => (prevScene.id === id ? { ...prevScene, content: newContent } : prevScene));
+  }, []);
+
+  const handleSceneSelect = useCallback((scene: Scene) => {
+    setSelectedScene(scene);
+  }, []);
+
+  const handleVideoSizeChange = useCallback((size: VideoSize) => {
+    setVideoSize(size);
+  }, []);
 
   return (
     <div className="flex h-full">
@@ -78,11 +83,16 @@ export default function EditVideo() {
           <SceneList
             scenes={scenes}
             selectedScene={selectedScene}
-            onSceneSelect={setSelectedScene}
+            onSceneSelect={handleSceneSelect}
             onSceneUpdate={handleSceneUpdate}
           />
           <div className="flex-1 flex flex-col">
-            <VideoPreview selectedScene={selectedScene} videoSize={videoSize} onVideoSizeChange={setVideoSize} />
+            <VideoPreview
+              scenes={scenes}
+              selectedScene={selectedScene}
+              videoSize={videoSize}
+              onVideoSizeChange={handleVideoSizeChange}
+            />
             <Timeline />
           </div>
         </div>
