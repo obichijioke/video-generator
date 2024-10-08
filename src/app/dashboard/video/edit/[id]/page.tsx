@@ -4,12 +4,16 @@ import { Sidebar } from '@/components/dashboard/video/edit/Sidebar';
 import { SceneList } from '@/components/dashboard/video/edit/SceneList';
 import { VideoPreview } from '@/components/dashboard/video/edit/VideoPreview';
 import { Timeline } from '@/components/dashboard/video/edit/Timeline';
+import { browserTTS, elevenlabsTTS, googleTTS, TTSService } from '@/utils/ttsServices';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Loader2 } from 'lucide-react';
 
 export interface Scene {
   id: number;
   title: string;
   content: string;
   thumbnail: string;
+  audio?: ArrayBuffer;
 }
 
 export type VideoSize = '16:9' | '4:3' | '1:1';
@@ -61,10 +65,46 @@ export default function EditVideo() {
 
   const [selectedScene, setSelectedScene] = useState(scenes[0]);
   const [videoSize, setVideoSize] = useState<VideoSize>('16:9');
+  const [ttsService, setTTSService] = useState<TTSService>('browser');
+  const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
+  const [currentGeneratingScene, setCurrentGeneratingScene] = useState<number | null>(null);
+
+  const generateAudioForScene = useCallback(
+    async (scene: Scene) => {
+      const ttsFunction =
+        ttsService === 'elevenlabs' ? elevenlabsTTS : ttsService === 'google' ? googleTTS : browserTTS;
+
+      try {
+        setIsGeneratingAudio(true);
+        setCurrentGeneratingScene(scene.id);
+        const audio = await ttsFunction(scene.content);
+        setScenes((prevScenes) => prevScenes.map((s) => (s.id === scene.id ? { ...s, audio } : s)));
+        setSelectedScene((prevScene) => (prevScene.id === scene.id ? { ...prevScene, audio } : prevScene));
+      } catch (error) {
+        console.error(`Failed to generate audio for scene ${scene.id}:`, error);
+      } finally {
+        setIsGeneratingAudio(false);
+        setCurrentGeneratingScene(null);
+      }
+    },
+    [ttsService],
+  );
+
+  const generateAllAudio = useCallback(async () => {
+    setIsGeneratingAudio(true);
+    for (const scene of scenes) {
+      await generateAudioForScene(scene);
+    }
+    setIsGeneratingAudio(false);
+  }, [scenes, generateAudioForScene]);
 
   const handleSceneUpdate = useCallback((id: number, newContent: string) => {
-    setScenes((prevScenes) => prevScenes.map((scene) => (scene.id === id ? { ...scene, content: newContent } : scene)));
-    setSelectedScene((prevScene) => (prevScene.id === id ? { ...prevScene, content: newContent } : prevScene));
+    setScenes((prevScenes) =>
+      prevScenes.map((scene) => (scene.id === id ? { ...scene, content: newContent, audio: undefined } : scene)),
+    );
+    setSelectedScene((prevScene) =>
+      prevScene.id === id ? { ...prevScene, content: newContent, audio: undefined } : prevScene,
+    );
   }, []);
 
   const handleSceneSelect = useCallback((scene: Scene) => {
@@ -87,6 +127,46 @@ export default function EditVideo() {
             onSceneUpdate={handleSceneUpdate}
           />
           <div className="flex-1 flex flex-col">
+            <div className="mb-4 flex items-center space-x-4">
+              <Select value={ttsService} onValueChange={(value) => setTTSService(value as TTSService)}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Select TTS Service" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="browser">Browser TTS</SelectItem>
+                  <SelectItem value="elevenlabs">ElevenLabs</SelectItem>
+                  <SelectItem value="google">Google Cloud TTS</SelectItem>
+                </SelectContent>
+              </Select>
+              <button
+                onClick={() => generateAudioForScene(selectedScene)}
+                disabled={isGeneratingAudio}
+                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-blue-300"
+              >
+                {isGeneratingAudio && currentGeneratingScene === selectedScene.id ? (
+                  <div className="flex items-center">
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Generating Audio...
+                  </div>
+                ) : (
+                  'Generate Audio for Scene'
+                )}
+              </button>
+              <button
+                onClick={generateAllAudio}
+                disabled={isGeneratingAudio}
+                className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 disabled:bg-green-300"
+              >
+                {isGeneratingAudio ? (
+                  <div className="flex items-center">
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Generating All Audio...
+                  </div>
+                ) : (
+                  'Generate All Audio'
+                )}
+              </button>
+            </div>
             <VideoPreview
               scenes={scenes}
               selectedScene={selectedScene}
