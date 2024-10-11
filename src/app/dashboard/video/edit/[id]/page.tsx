@@ -7,6 +7,7 @@ import { Timeline } from '@/components/dashboard/video/edit/Timeline';
 import { browserTTS, elevenlabsTTS, googleTTS, TTSService } from '@/utils/ttsServices';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2 } from 'lucide-react';
+import { VideoPreviewTwo } from '@/components/dashboard/video/edit/VideoPreviewTwo';
 
 export interface Scene {
   id: number;
@@ -33,7 +34,7 @@ export default function EditVideo() {
         "Whether you're a YouTuber, filmmaker, or content creator, these strategies can help you turn your passion into a profitable venture.",
       thumbnail: 'https://picsum.photos/800/600',
     },
-    { id: 3, title: 'Scene 3', content: '1.', thumbnail: 'https://picsum.photos/800/600' },
+    { id: 3, title: 'Scene 3', content: '1. YouTube Monetization', thumbnail: 'https://picsum.photos/800/600' },
     {
       id: 4,
       title: 'Scene 4',
@@ -167,8 +168,7 @@ export default function EditVideo() {
                 )}
               </button>
             </div>
-            <VideoPreview
-              scenes={scenes}
+            <VideoPreviewTwo
               selectedScene={selectedScene}
               videoSize={videoSize}
               onVideoSizeChange={handleVideoSizeChange}
