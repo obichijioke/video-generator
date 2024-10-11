@@ -8,7 +8,7 @@ import './global.css';
  */
 export default makeProject({
   scenes: [sceneTwo],
-  variables: metadata,
+  //variables: metadata,
   settings: {
     shared: {
       size: { x: 1920, y: 1080 },

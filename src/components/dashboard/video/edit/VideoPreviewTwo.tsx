@@ -38,7 +38,7 @@ export function VideoPreviewTwo({ selectedScene, videoSize, onVideoSizeChange }:
 
   return (
     <div className="rounded-lg shadow flex flex-col">
-      <div className="p-4 flex justify-between items-center">
+      <div className="p-4 flex justify-center items-center">
         <Player
           project={projectVideo}
           controls={true}
@@ -47,6 +47,8 @@ export function VideoPreviewTwo({ selectedScene, videoSize, onVideoSizeChange }:
             audioUrl: sceneData.audioUrl,
             words: sceneData.words,
           }}
+          width={600}
+          height={450}
         />
       </div>
     </div>
