@@ -50,6 +50,16 @@ const dummyMedia = [
   { id: 4, type: 'video', duration: '00:15', thumbnail: '/path/to/thumbnail4.jpg', category: 'Linked' },
 ];
 
+interface MediaItem {
+  id: string;
+  title: string;
+  url: string;
+  thumbnail: string;
+  type: 'image' | 'video';
+  creator?: string;
+  license: string;
+}
+
 export default function EditVideoPage({ params }: { params: { projectId: string } }) {
   const [activeTab, setActiveTab] = useState('story');
   const [project, setProject] = useState<VideoProject | null>(null);
@@ -59,9 +69,13 @@ export default function EditVideoPage({ params }: { params: { projectId: string 
   const [searchQuery, setSearchQuery] = useState('');
   const [editingScene, setEditingScene] = useState<Scene | null>(null);
   const [deletingSceneId, setDeletingSceneId] = useState<string | null>(null);
+  const [mediaType, setMediaType] = useState<'image' | 'video'>('image');
+  const [results, setResults] = useState<MediaItem[]>([]);
+  const [page, setPage] = useState(1);
   const supabase = createClient();
   const { user } = useUserInfo(supabase);
   const router = useRouter();
+  const [selectedSceneId, setSelectedSceneId] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -200,6 +214,25 @@ export default function EditVideoPage({ params }: { params: { projectId: string 
     }
   };
 
+  const handleMediaSelect = async (url: string) => {
+    if (selectedSceneId && project) {
+      try {
+        const { error } = await supabase.from('video_scenes').update({ media_url: url }).eq('id', selectedSceneId);
+
+        if (error) throw error;
+
+        const updatedScenes = project.scenes.map((scene) =>
+          scene.id === selectedSceneId ? { ...scene, media_url: url } : scene,
+        );
+        setProject({ ...project, scenes: updatedScenes });
+        toast.success('Media updated successfully');
+      } catch (error) {
+        console.error('Error updating scene media:', error);
+        toast.error('Failed to update scene media');
+      }
+    }
+  };
+
   const renderContent = () => {
     switch (activeTab) {
       case 'story':
@@ -213,18 +246,25 @@ export default function EditVideoPage({ params }: { params: { projectId: string 
             onScenesReorder={handleScenesReorder}
             onEditScene={handleEditScene}
             onDeleteScene={setDeletingSceneId}
+            selectedSceneId={selectedSceneId}
+            setSelectedSceneId={setSelectedSceneId}
           />
         );
 
       case 'visuals':
         return (
           <VisualsTab
-            mediaCategories={mediaCategories}
-            selectedCategory={selectedCategory}
-            onCategorySelect={setSelectedCategory}
+            onMediaSelect={handleMediaSelect}
             searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-            mediaItems={dummyMedia}
+            setSearchQuery={setSearchQuery}
+            mediaType={mediaType}
+            setMediaType={setMediaType}
+            results={results}
+            setResults={setResults}
+            isLoading={isLoading}
+            setIsLoading={setIsLoading}
+            page={page}
+            setPage={setPage}
           />
         );
 

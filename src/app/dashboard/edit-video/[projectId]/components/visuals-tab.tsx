@@ -1,75 +1,134 @@
 'use client';
 
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Search, Image, Video } from 'lucide-react';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface MediaItem {
-  id: number;
-  type: string;
-  duration: string;
+  id: string;
+  title: string;
+  url: string;
   thumbnail: string;
-  category: string;
+  type: 'image' | 'video';
+  creator?: string;
+  license: string;
 }
 
 interface VisualsTabProps {
-  mediaCategories: string[];
-  selectedCategory: string;
-  onCategorySelect: (category: string) => void;
+  onMediaSelect: (url: string) => void;
   searchQuery: string;
-  onSearchChange: (query: string) => void;
-  mediaItems: MediaItem[];
+  setSearchQuery: (query: string) => void;
+  mediaType: 'image' | 'video';
+  setMediaType: (type: 'image' | 'video') => void;
+  results: MediaItem[];
+  setResults: (results: MediaItem[]) => void;
+  isLoading: boolean;
+  setIsLoading: (loading: boolean) => void;
+  page: number;
+  setPage: (page: number) => void;
 }
 
 export function VisualsTab({
-  mediaCategories,
-  selectedCategory,
-  onCategorySelect,
+  onMediaSelect,
   searchQuery,
-  onSearchChange,
-  mediaItems,
+  setSearchQuery,
+  mediaType,
+  setMediaType,
+  results,
+  setResults,
+  isLoading,
+  setIsLoading,
+  page,
+  setPage,
 }: VisualsTabProps) {
+  const searchMedia = async (reset = false) => {
+    const newPage = reset ? 1 : page;
+    setIsLoading(true);
+
+    try {
+      const response = await fetch(
+        `/api/openverse?q=${encodeURIComponent(searchQuery)}&page=${newPage}&type=${mediaType}`,
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const formattedResults = data.results.map((item: any) => ({
+        id: item.id,
+        title: item.title,
+        url: mediaType === 'image' ? item.url : item.url,
+        thumbnail: mediaType === 'image' ? item.thumbnail : item.thumbnail,
+        type: mediaType,
+        creator: item.creator,
+        license: item.license,
+      }));
+
+      setResults(reset ? formattedResults : [...results, ...formattedResults]);
+      setPage(newPage + 1);
+    } catch (error) {
+      console.error('Error fetching media:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-4">
-        <div className="flex items-center justify-between">
-          <div className="flex gap-2">
-            {mediaCategories.map((category) => (
-              <Button
-                key={category}
-                variant={selectedCategory === category ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => onCategorySelect(category)}
-              >
-                {category}
-              </Button>
-            ))}
-          </div>
-          <div className="relative">
-            <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              className="w-[300px] pl-8"
-              placeholder="Search images and videos"
-              type="search"
-              value={searchQuery}
-              onChange={(e) => onSearchChange(e.target.value)}
-            />
-          </div>
+      <div className="space-y-4">
+        <div className="flex gap-2">
+          <Button variant={mediaType === 'image' ? 'default' : 'outline'} onClick={() => setMediaType('image')}>
+            <Image className="mr-2 h-4 w-4" />
+            Images
+          </Button>
+          <Button variant={mediaType === 'video' ? 'default' : 'outline'} onClick={() => setMediaType('video')}>
+            <Video className="mr-2 h-4 w-4" />
+            Videos
+          </Button>
         </div>
+
+        <div className="relative">
+          <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            className="pl-8"
+            placeholder={`Search ${mediaType}s...`}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && searchMedia(true)}
+          />
+        </div>
+      </div>
+
+      <ScrollArea className="h-[500px]">
         <div className="grid grid-cols-2 gap-4">
-          {mediaItems.map((media) => (
+          {results.map((item) => (
             <div
-              key={media.id}
-              className="group relative aspect-video rounded-lg bg-muted overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary"
+              key={item.id}
+              className="group relative cursor-pointer overflow-hidden rounded-lg"
+              onClick={() => onMediaSelect(item.url)}
             >
-              <div className="absolute top-2 right-2 bg-black/50 text-white text-xs px-2 py-1 rounded">
-                {media.duration}
+              <img
+                src={item.thumbnail}
+                alt={item.title}
+                className="h-[300px] w-full object-cover transition-transform group-hover:scale-105"
+              />
+              <div className="absolute inset-0 bg-black/60 p-2 text-white opacity-0 transition-opacity group-hover:opacity-100">
+                <p className="text-sm font-medium line-clamp-2">{item.title}</p>
+                {item.creator && <p className="text-xs text-gray-300">By {item.creator}</p>}
               </div>
-              <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
             </div>
           ))}
         </div>
-      </div>
+
+        {results.length > 0 && (
+          <Button variant="outline" className="mt-4" onClick={() => searchMedia()} disabled={isLoading}>
+            {isLoading ? <LoadingSpinner className="h-4 w-4" /> : 'Load more'}
+          </Button>
+        )}
+      </ScrollArea>
     </div>
   );
 }

@@ -37,7 +37,9 @@ interface StoryTabProps {
   onSceneSelect: (index: number) => void;
   onScenesReorder: (scenes: Scene[]) => void;
   onEditScene: (scene: Scene) => void;
-  onDeleteScene: (sceneId: string) => void;
+  onDeleteScene: (id: string) => void;
+  selectedSceneId: string | null;
+  setSelectedSceneId: (id: string | null) => void;
 }
 
 interface SortableSceneProps {
@@ -113,6 +115,8 @@ export function StoryTab({
   onScenesReorder,
   onEditScene,
   onDeleteScene,
+  selectedSceneId,
+  setSelectedSceneId,
 }: StoryTabProps) {
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -163,10 +167,13 @@ export function StoryTab({
               <SortableScene
                 key={scene.id}
                 scene={scene}
-                isActive={currentSceneIndex === index}
+                isActive={currentSceneIndex === index || selectedSceneId === scene.id}
                 onEdit={onEditScene}
                 onDelete={onDeleteScene}
-                onClick={() => onSceneSelect(index)}
+                onClick={() => {
+                  onSceneSelect(index);
+                  setSelectedSceneId(scene.id);
+                }}
               />
             ))}
           </SortableContext>
