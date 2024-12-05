@@ -6,12 +6,33 @@ import { useUserInfo } from '@/hooks/useUserInfo';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Header, Sidebar, PreviewSection, StoryTab, VisualsTab } from './components';
 
 interface Scene {
   id: string;
   scene_number: number;
   content: string;
+  media_url: string | null;
 }
 
 interface VideoProject {
@@ -36,6 +57,8 @@ export default function EditVideoPage({ params }: { params: { projectId: string 
   const [currentSceneIndex, setCurrentSceneIndex] = useState(0);
   const [selectedCategory, setSelectedCategory] = useState('Data');
   const [searchQuery, setSearchQuery] = useState('');
+  const [editingScene, setEditingScene] = useState<Scene | null>(null);
+  const [deletingSceneId, setDeletingSceneId] = useState<string | null>(null);
   const supabase = createClient();
   const { user } = useUserInfo(supabase);
   const router = useRouter();
@@ -99,6 +122,84 @@ export default function EditVideoPage({ params }: { params: { projectId: string 
     setCurrentSceneIndex((prev) => Math.min(project.scenes.length - 1, prev + 1));
   };
 
+  const handleEditScene = (scene: Scene) => {
+    setEditingScene({ ...scene });
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingScene || !project) return;
+
+    try {
+      const { error } = await supabase
+        .from('video_scenes')
+        .update({
+          content: editingScene.content,
+          media_url: editingScene.media_url,
+        })
+        .eq('id', editingScene.id);
+
+      if (error) throw error;
+
+      const updatedScenes = project.scenes.map((scene) => (scene.id === editingScene.id ? editingScene : scene));
+
+      setProject({ ...project, scenes: updatedScenes });
+      setEditingScene(null);
+      toast.success('Scene updated successfully');
+    } catch (error) {
+      console.error('Error updating scene:', error);
+      toast.error('Failed to update scene');
+    }
+  };
+
+  const handleDeleteScene = async () => {
+    if (!deletingSceneId || !project) return;
+
+    try {
+      const { error } = await supabase.from('video_scenes').delete().eq('id', deletingSceneId);
+
+      if (error) throw error;
+
+      const updatedScenes = project.scenes
+        .filter((scene) => scene.id !== deletingSceneId)
+        .map((scene, index) => ({
+          ...scene,
+          scene_number: index + 1,
+        }));
+
+      setProject({ ...project, scenes: updatedScenes });
+      if (currentSceneIndex >= updatedScenes.length) {
+        setCurrentSceneIndex(Math.max(0, updatedScenes.length - 1));
+      }
+      toast.success('Scene deleted successfully');
+    } catch (error) {
+      console.error('Error deleting scene:', error);
+      toast.error('Failed to delete scene');
+    } finally {
+      setDeletingSceneId(null);
+    }
+  };
+
+  const handleScenesReorder = async (newScenes: Scene[]) => {
+    if (!project) return;
+
+    try {
+      const updates = newScenes.map((scene) => ({
+        id: scene.id,
+        scene_number: scene.scene_number,
+      }));
+
+      const { error } = await supabase.from('video_scenes').upsert(updates);
+
+      if (error) throw error;
+
+      setProject({ ...project, scenes: newScenes });
+      toast.success('Scenes reordered successfully');
+    } catch (error) {
+      console.error('Error reordering scenes:', error);
+      toast.error('Failed to reorder scenes');
+    }
+  };
+
   const renderContent = () => {
     switch (activeTab) {
       case 'story':
@@ -109,6 +210,9 @@ export default function EditVideoPage({ params }: { params: { projectId: string 
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
             onSceneSelect={setCurrentSceneIndex}
+            onScenesReorder={handleScenesReorder}
+            onEditScene={handleEditScene}
+            onDeleteScene={setDeletingSceneId}
           />
         );
 
@@ -146,23 +250,88 @@ export default function EditVideoPage({ params }: { params: { projectId: string 
   }
 
   return (
-    <div className="flex h-screen">
-      <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
+    <>
+      <div className="flex h-screen">
+        <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
 
-      <div className="flex flex-1 flex-col">
-        <Header title={project.title} />
+        <div className="flex flex-1 flex-col">
+          <Header title={project.title} />
 
-        <div className="grid flex-1 grid-cols-2 gap-4 p-4">
-          <div className="overflow-auto">{renderContent()}</div>
+          <div className="grid flex-1 grid-cols-2 gap-4 p-4">
+            <div className="overflow-auto">{renderContent()}</div>
 
-          <PreviewSection
-            currentSceneIndex={currentSceneIndex}
-            totalScenes={project.scenes.length}
-            onPrevious={handlePreviousScene}
-            onNext={handleNextScene}
-          />
+            <PreviewSection
+              currentSceneIndex={currentSceneIndex}
+              totalScenes={project.scenes.length}
+              onPrevious={handlePreviousScene}
+              onNext={handleNextScene}
+            />
+          </div>
         </div>
       </div>
-    </div>
+
+      {/* Edit Scene Dialog */}
+      <Dialog open={!!editingScene} onOpenChange={(open) => !open && setEditingScene(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Scene {editingScene?.scene_number}</DialogTitle>
+            <DialogDescription>Make changes to the scene content below.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label htmlFor="content" className="text-sm font-medium">
+                Content
+              </label>
+              <Textarea
+                id="content"
+                value={editingScene?.content || ''}
+                onChange={(e) => setEditingScene(editingScene ? { ...editingScene, content: e.target.value } : null)}
+                className="min-h-[200px]"
+              />
+            </div>
+            <div className="space-y-2">
+              <label htmlFor="media_url" className="text-sm font-medium">
+                Media URL
+              </label>
+              <input
+                id="media_url"
+                type="text"
+                className="w-full px-3 py-2 border rounded-md"
+                value={editingScene?.media_url || ''}
+                onChange={(e) => setEditingScene(editingScene ? { ...editingScene, media_url: e.target.value } : null)}
+                placeholder="Enter image or video URL"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingScene(null)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveEdit}>Save changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Scene Dialog */}
+      <AlertDialog open={!!deletingSceneId} onOpenChange={(open) => !open && setDeletingSceneId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Scene</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this scene? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteScene}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
