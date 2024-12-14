@@ -106,17 +106,11 @@ export default function EditVideoPage({ params }: { params: { projectId: string 
         return;
       }
 
-      const { data: scenesData, error: scenesError } = await supabase
-        .from('video_scenes')
-        .select('*')
-        .eq('project_id', params.projectId)
-        .order('scene_number');
-
-      if (scenesError) throw scenesError;
+      const scenes = projectData.scenes || [];
 
       setProject({
         ...projectData,
-        scenes: scenesData || [],
+        scenes: scenes,
       });
     } catch (error) {
       console.error('Error fetching project:', error);
@@ -144,17 +138,16 @@ export default function EditVideoPage({ params }: { params: { projectId: string 
     if (!editingScene || !project) return;
 
     try {
+      const updatedScenes = project.scenes.map((scene) => (scene.id === editingScene.id ? editingScene : scene));
+
       const { error } = await supabase
-        .from('video_scenes')
+        .from('video_projects')
         .update({
-          content: editingScene.content,
-          media_url: editingScene.media_url,
+          scenes: updatedScenes,
         })
-        .eq('id', editingScene.id);
+        .eq('id', project.id);
 
       if (error) throw error;
-
-      const updatedScenes = project.scenes.map((scene) => (scene.id === editingScene.id ? editingScene : scene));
 
       setProject({ ...project, scenes: updatedScenes });
       setEditingScene(null);
@@ -169,16 +162,21 @@ export default function EditVideoPage({ params }: { params: { projectId: string 
     if (!deletingSceneId || !project) return;
 
     try {
-      const { error } = await supabase.from('video_scenes').delete().eq('id', deletingSceneId);
-
-      if (error) throw error;
-
       const updatedScenes = project.scenes
         .filter((scene) => scene.id !== deletingSceneId)
         .map((scene, index) => ({
           ...scene,
           scene_number: index + 1,
         }));
+
+      const { error } = await supabase
+        .from('video_projects')
+        .update({
+          scenes: updatedScenes,
+        })
+        .eq('id', project.id);
+
+      if (error) throw error;
 
       setProject({ ...project, scenes: updatedScenes });
       if (currentSceneIndex >= updatedScenes.length) {
@@ -197,12 +195,12 @@ export default function EditVideoPage({ params }: { params: { projectId: string 
     if (!project) return;
 
     try {
-      const updates = newScenes.map((scene) => ({
-        id: scene.id,
-        scene_number: scene.scene_number,
-      }));
-
-      const { error } = await supabase.from('video_scenes').upsert(updates);
+      const { error } = await supabase
+        .from('video_projects')
+        .update({
+          scenes: newScenes,
+        })
+        .eq('id', project.id);
 
       if (error) throw error;
 
@@ -217,13 +215,19 @@ export default function EditVideoPage({ params }: { params: { projectId: string 
   const handleMediaSelect = async (url: string) => {
     if (selectedSceneId && project) {
       try {
-        const { error } = await supabase.from('video_scenes').update({ media_url: url }).eq('id', selectedSceneId);
-
-        if (error) throw error;
-
         const updatedScenes = project.scenes.map((scene) =>
           scene.id === selectedSceneId ? { ...scene, media_url: url } : scene,
         );
+
+        const { error } = await supabase
+          .from('video_projects')
+          .update({
+            scenes: updatedScenes,
+          })
+          .eq('id', project.id);
+
+        if (error) throw error;
+
         setProject({ ...project, scenes: updatedScenes });
         toast.success('Media updated successfully');
       } catch (error) {
@@ -305,6 +309,7 @@ export default function EditVideoPage({ params }: { params: { projectId: string 
               totalScenes={project.scenes.length}
               onPrevious={handlePreviousScene}
               onNext={handleNextScene}
+              scenes={project.scenes}
             />
           </div>
         </div>

@@ -42,7 +42,8 @@
     "@radix-ui/react-slot": "^1.1.0",
     "@radix-ui/react-tabs": "^1.1.0",
     "@radix-ui/react-toast": "^1.2.1",
-    "@remotion/player": "^4.0.217",
+    "@remotion/google-fonts": "^4.0.240",
+    "@remotion/player": "^4.0.240",
     "@revideo/2d": "0.10.1",
     "@revideo/core": "0.10.1",
     "@revideo/player-react": "0.10.1",
@@ -62,7 +63,7 @@
     "p-limit": "^3",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "remotion": "^4.0.217",
+    "remotion": "^4.0.240",
     "sonner": "^1.7.0",
     "tailwind-merge": "^2.4.0",
     "tailwindcss-animate": "^1.0.7"

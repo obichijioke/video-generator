@@ -281,7 +281,16 @@ export default function ArticleToVideoPage() {
     setIsCreatingProject(true);
 
     try {
-      // Create the project using the user from useUserInfo
+      // Create scenes data with UUIDs
+      const scenesData = articleData.scenes.map((scene) => ({
+        id: crypto.randomUUID(),
+        scene_number: scene.id,
+        content: scene.content,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }));
+
+      // Create the project with scenes included
       const { data: project, error: projectError } = await supabase
         .from('video_projects')
         .insert({
@@ -290,22 +299,12 @@ export default function ArticleToVideoPage() {
           source_content: articleData.content,
           status: 'draft',
           user_id: user.id,
+          scenes: scenesData,
         })
         .select()
         .single();
 
       if (projectError) throw projectError;
-
-      // Create the scenes
-      const scenesData = articleData.scenes.map((scene) => ({
-        project_id: project.id,
-        scene_number: scene.id,
-        content: scene.content,
-      }));
-
-      const { error: scenesError } = await supabase.from('video_scenes').insert(scenesData);
-
-      if (scenesError) throw scenesError;
 
       // Redirect to edit page
       router.push(`/dashboard/edit-video/${project.id}`);
